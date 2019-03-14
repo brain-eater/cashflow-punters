@@ -1,6 +1,7 @@
-const { getNextNum, add, randomNum } = require("../utils/utils.js");
+const { getNextNum } = require("../utils/utils.js");
 const FinancialStatement = require("./financialStatement");
 const { CHARITY_MSG } = require("../constant");
+const Dice = require("./dice");
 
 class Player extends FinancialStatement {
   constructor(name) {
@@ -14,10 +15,23 @@ class Player extends FinancialStatement {
     this.didUpdateSpace = false;
     this.notification = "";
     this.downSizedForTurns = 0;
+    this.bankrupted = false;
+    this.isTurnComplete = true;
+    this.notifyEscape = false;
+    this.dice = new Dice();
+    this.hasMLM = false;
+    this.MLMProfit = 0;
+    this.MLMCardsCount = 0;
+    this.MLMTurns = 0;
+    this.hasLeftGame = false;
   }
 
   setTurn(turn) {
     this.turn = turn;
+  }
+
+  isBankruptcy() {
+    return this.cashflow < 0 && this.ledgerBalance < -this.cashflow;
   }
 
   removeCharityEffect() {
@@ -26,6 +40,10 @@ class Player extends FinancialStatement {
 
   isDownSized() {
     return this.downSizedForTurns != 0;
+  }
+
+  downSizeTurns() {
+    return this.downSizedForTurns;
   }
 
   isLedgerBalanceNegative() {
@@ -56,7 +74,7 @@ class Player extends FinancialStatement {
 
   addBaby() {
     if (this.childrenCount == 3) {
-      this.setNotification("you already have 3 babies so baby is not added");
+      this.setNotification("You already have 3 babies so baby is not added");
       return false;
     }
     this.childrenCount += 1;
@@ -83,14 +101,17 @@ class Player extends FinancialStatement {
     this.charityTurns = this.charityTurns && this.charityTurns - 1;
   }
 
-  rollDice(numberOfDice = 1) {
-    const diceValues = new Array(numberOfDice)
-      .fill(6)
-      .map(value => randomNum(value));
-    this.move(diceValues.reduce(add));
+  rollDiceAndMove(numberOfDice) {
+    this.oldSpaceNo = this.currentSpace;
+    const diceValues = this.rollDie(numberOfDice);
+    this.move(this.dice.total());
     this.rolledDice = true;
     this.reduceCharityTurns();
     return diceValues;
+  }
+
+  rollDie(numberOfDice = 1) {
+    return this.dice.roll(numberOfDice);
   }
 
   hasCharityTurns() {
@@ -98,22 +119,24 @@ class Player extends FinancialStatement {
   }
 
   addRealEstate(card) {
-    const { downPayment, type, cost, cashflow, mortgage } = card;
+    const { downPayment, type } = card;
     if (this.ledgerBalance < downPayment) return false;
-    this.deductLedgerBalance(+downPayment);
-    this.addDebitEvent(+downPayment, "brought realEstate");
-    this.addAsset(type, downPayment, cost);
-    this.addLiability(type, mortgage);
-    this.addIncomeRealEstate(type, cashflow);
+    this.deductLedgerBalance(downPayment);
+    this.addDebitEvent(downPayment, "bought Real Estate");
+    this.addAsset(card);
+    this.addRealEstateLiability(card);
+    this.addIncomeRealEstate(card);
+    this.setNotification(`You bought ${type} for $${downPayment}`);
     return true;
   }
 
   buyGoldCoins(card) {
     const { cost, numberOfCoins } = card;
-    if (this.ledgerBalance < cost * numberOfCoins) return false;
-    this.deductLedgerBalance(cost * numberOfCoins);
+    if (this.ledgerBalance < cost) return false;
+    this.deductLedgerBalance(cost);
     this.addGoldCoins(+numberOfCoins);
-    this.addCreditEvent(cost * numberOfCoins, "brought gold coins");
+    this.addDebitEvent(cost, `bought ${numberOfCoins} Gold Coins`);
+    this.setNotification(`You bought ${numberOfCoins} Gold Coins for $${cost}`);
     return true;
   }
 
@@ -127,6 +150,94 @@ class Player extends FinancialStatement {
 
   hasChild() {
     return this.childrenCount > 0;
+  }
+
+  buyShares(card, numberOfShares) {
+    const { symbol, currentPrice } = card;
+    const price = numberOfShares * currentPrice;
+    this.deductLedgerBalance(price);
+    this.addDebitEvent(price, ` brought shares of ${symbol}`);
+    this.assets.shares[symbol] = { numberOfShares, currentPrice };
+    this.setNotification(
+      `You bought ${numberOfShares} shares of ${symbol} for $${price}`
+    );
+  }
+
+  sellShares(card, numberOfShares) {
+    const { symbol, currentPrice } = card;
+    let price = numberOfShares * currentPrice;
+    this.addToLedgerBalance(price);
+    this.addCreditEvent(price, ` sold shares of ${symbol}`);
+    this.assets.shares[symbol].numberOfShares -= numberOfShares;
+    const shareOfCompany = this.assets.shares[symbol].numberOfShares;
+    if (shareOfCompany == 0) delete this.assets.shares[symbol];
+    this.setNotification(
+      `You sold ${numberOfShares} shares of ${symbol} for $${price}`
+    );
+  }
+
+  isCapableToPay(amount) {
+    return this.ledgerBalance >= amount;
+  }
+
+  isCapableToSell(symbol, numberOfShares) {
+    return this.assets.shares[symbol].numberOfShares >= numberOfShares;
+  }
+
+  completeTurn() {
+    this.isTurnComplete = true;
+  }
+
+  holdTurn() {
+    this.isTurnComplete = false;
+  }
+
+  addMLM(card) {
+    const { cost } = card;
+    this.hasMLM = true;
+    this.MLMProfit = cost;
+    this.MLMCardsCount += 1;
+    this.deductLedgerBalance(cost);
+    this.setNotification("You bought MLM card");
+    this.addDebitEvent(cost, "bought MLM card");
+    return true;
+  }
+
+  addMLMProfit() {
+    const profit = this.MLMProfit;
+    this.addToLedgerBalance(profit);
+    this.addCreditEvent(profit, "got MLM profit");
+    this.setNotification(`You got $${profit} as MLM profit `);
+  }
+
+  incrementMLMTurns() {
+    this.MLMTurns += 1;
+  }
+
+  isMLMTurnLeft() {
+    return this.MLMTurns < this.MLMCardsCount;
+  }
+
+  removeMLMTurn() {
+    this.MLMTurns = 0;
+  }
+
+  rollDiceForMLM() {
+    this.rollDie();
+    this.incrementMLMTurns();
+    const isMLMTurnLeft = this.isMLMTurnLeft();
+    const diceValue = this.dice.total();
+    if (diceValue < 4) {
+      this.addMLMProfit();
+      return { gotMLM: true, diceValue, isMLMTurnLeft };
+    }
+    this.setNotification("you didn't get MLM profit");
+    return { gotMLM: false, diceValue, isMLMTurnLeft };
+  }
+
+  removeAllShares() {
+    this.assets.shares = {};
+    this.addCreditEvent(0, " sold all shares");
   }
 }
 

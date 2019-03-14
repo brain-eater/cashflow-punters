@@ -1,10 +1,15 @@
 const renderHomePage = function(req, res) {
+  if (req.game) {
+    res.redirect("board.html");
+    return;
+  }
   res.redirect("/homepage.html");
 };
 
 const getCurrentGame = function(req, res, next) {
   const { gameId } = req.cookies;
   req.game = res.app.games[gameId];
+  req.fs = res.app.fs;
   next();
 };
 

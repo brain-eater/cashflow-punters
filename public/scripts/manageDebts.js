@@ -33,7 +33,7 @@ const appendOptions = function(parent, option) {
 const displayLoanForm = function() {
   const form = getElementById("manage-debt-form");
   const input = createInput("amount", "Enter amount", "number", "debt-input");
-  input.className = "debt-input";
+  input.classList.add("textField");
   const loanButton = createButton("Take Loan", "form-button");
   const closeButton = createButton("&times;", "close");
   const message = "Enter amount in Multiples of 1000";
@@ -120,12 +120,23 @@ const showBankForm = function() {
   showOverlay("manage-debt-form");
 };
 
+const getPayableLiabilities = function(playerLiabilities) {
+  const payableLiabilities = {};
+  const liabilitiyTitles = Object.keys(playerLiabilities);
+  liabilitiyTitles.forEach(title => {
+    if (playerLiabilities[title] && title != "realEstates") {
+      payableLiabilities[title] = playerLiabilities[title];
+    }
+  });
+  return Object.keys(payableLiabilities);
+};
+
 const displayLiabilityOptions = function(player) {
   const form = getElementById("manage-debt-form");
   const selectTag = createElement("select", "options");
   selectTag.className = "select-tag";
-  const liabilityTitles = Object.keys(player.liabilities);
-  const options = liabilityTitles.reduce(appendOptions, selectTag);
+  const payableLiabilities = getPayableLiabilities(player.liabilities);
+  const options = payableLiabilities.reduce(appendOptions, selectTag);
   const amountInput = createInput(
     "amount",
     "Enter amount",

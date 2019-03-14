@@ -1,4 +1,5 @@
 const { rollDice } = require("../src/gameHandlers");
+const { renderHomePage } = require("../src/handlers");
 const chai = require("chai");
 const sinon = require("sinon");
 
@@ -8,7 +9,7 @@ describe("rollDice", function() {
   beforeEach(() => {
     req = {};
     req.game = {
-      addActivity: sinon.spy(),
+      activityLog: { addActivity: sinon.spy() },
       nextPlayer: sinon.spy(),
       board: { getSpaceType: sinon.stub().returns("a") },
       currentPlayer: {
@@ -18,6 +19,7 @@ describe("rollDice", function() {
         move: sinon.spy(),
         isDownSized: sinon.stub()
       },
+      isCurrentPlayer: sinon.stub(),
       rollDice: sinon.spy(),
       handleSpace: sinon.spy()
     };
@@ -29,6 +31,7 @@ describe("rollDice", function() {
     res.json = sinon.spy();
 
     req.game.currentPlayer.isDownSized.onFirstCall().returns(false);
+    req.game.isCurrentPlayer.onFirstCall().returns(true);
   });
   it("should return a number between 1 and 6 ", function() {
     rollDice(req, res);
@@ -40,6 +43,18 @@ describe("rollDice", function() {
     let { currentPlayer } = req.game;
     currentPlayer.name = "a";
     rollDice(req, res);
-    chai.expect(req.game.addActivity.calledOnce).to.be.false;
+    chai.expect(req.game.activityLog.addActivity.calledOnce).to.be.false;
+  });
+});
+
+describe("renderHomePage", function() {
+  it("should render home page if game is already present", function() {
+    let req = { game: true };
+    let res = {
+      redirect: url => {
+        chai.expect(url).to.equal("board.html");
+      }
+    };
+    renderHomePage(req, res);
   });
 });

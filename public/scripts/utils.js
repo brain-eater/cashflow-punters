@@ -3,7 +3,7 @@ const getElementById = function(id) {
 };
 
 const setInnerText = function(id, text) {
-  return (getElementById(id).innerHTML = text);
+  return (getElementById(id).innerText = text);
 };
 
 const createElement = function(tag, id) {
@@ -33,18 +33,20 @@ const createPara = function(values) {
   return a;
 };
 
-const createForm = function(action, method) {
+const createForm = function(action, method, className) {
   const form = createElement("form");
   form.action = action;
   form.method = method;
+  form.className = className;
   return form;
 };
 
-const createInput = function(name, placeholder, type, id) {
+const createInput = function(name, placeholder, type, id, className) {
   const input = createElement("input", id);
   input.placeholder = placeholder;
   input.name = name;
   input.type = type;
+  input.className = className;
   return input;
 };
 
@@ -94,6 +96,7 @@ const createDivWithClass = function(classname) {
 const createPopupButton = function(text, func) {
   let button = createElement("button");
   button.innerText = text;
+  button.className = "continue-button";
   button.onclick = func;
   return button;
 };
@@ -102,6 +105,44 @@ const formatTime = function(date) {
   return date.toLocaleString("en-US", {
     hour: "numeric",
     minute: "numeric",
-    hour12: true
+    hour12: false
   });
+};
+
+const hideOverlay = function(id) {
+  const element = getElementById(id);
+  element.style.visibility = "hidden";
+};
+
+const closeOverlay = function(id) {
+  const element = getElementById(id);
+  element.style.display = "none";
+};
+
+const openOverlay = function(id, displayType = "block") {
+  const element = getElementById(id);
+  element.style.display = displayType;
+};
+
+const showOverlay = function(id) {
+  const element = getElementById(id);
+  element.style.visibility = "visible";
+};
+
+const createTextDiv = function(text, id) {
+  const textDiv = document.createElement("div");
+  const textPara = document.createElement("p");
+  textPara.innerText = text;
+  textPara.id = id;
+  textDiv.appendChild(textPara);
+  return textDiv;
+};
+
+const createHeadingDiv = function(headingNum, text, id) {
+  const textDiv = document.createElement("div");
+  const heading = document.createElement("h" + headingNum);
+  heading.innerText = text;
+  heading.id = id;
+  textDiv.appendChild(heading);
+  return textDiv;
 };

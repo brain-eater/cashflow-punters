@@ -3,20 +3,20 @@ class CashLedger {
     this.entries = [];
   }
 
-  addCreditEvent(amount, event) {
+  addCreditEvent(amount, event, time = new Date()) {
     const entry = { amount, event };
     entry.currentBalance = this.ledgerBalance;
-    entry.time = new Date();
+    entry.time = time;
     entry.type = "credit";
-    this.entries.push(entry);
+    this.entries.unshift(entry);
   }
 
-  addDebitEvent(amount, event) {
+  addDebitEvent(amount, event, time = new Date()) {
     const entry = { amount, event };
     entry.currentBalance = this.ledgerBalance;
-    entry.time = new Date();
+    entry.time = time;
     entry.type = "debit";
-    this.entries.push(entry);
+    this.entries.unshift(entry);
   }
 
   getCashLedger() {
